@@ -10,4 +10,4 @@
 - [개발 상태와 인계](docs/status.md)
 - [AI 작업 규칙](AGENTS.md)
 
-현재는 전 회차 스냅샷과 1단계 조회·적재를 로컬에서 검증했다. [LOTTO-01 기록](docs/tasks/LOTTO-01.md)에서 구현 커밋과 검증 범위를 확인할 수 있다.
+전 회차 적재와 2단계 통계·분석 API를 로컬에서 검증했다. [LOTTO-01 기록](docs/tasks/LOTTO-01.md) · [LOTTO-03·06 기록](docs/tasks/LOTTO-03-06.md)
