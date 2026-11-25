@@ -7,13 +7,19 @@ final class LottoPreviewTests: XCTestCase {
         app.launchEnvironment["LOTTO_UI_TEST_RUN"] = UUID().uuidString
         app.launch()
         capture("lotto-first-launch", from: app)
-        app.buttons["quick-draw"].tap()
-        capture("lotto-orb-launch", from: app)
         let result = app.descendants(matching: .any).matching(identifier: "draw-result").firstMatch
+        let orb = app.buttons["quick-pull"]
+        XCTAssertTrue(orb.exists)
+        pull(orb, distance: 27, hold: 0.10)
+        XCTAssertFalse(result.exists)
+        pull(orb, distance: 93, hold: 0.28)
+        capture("lotto-pull-cutscene", from: app)
         XCTAssertTrue(result.exists)
         XCTAssertEqual(result.label.split(whereSeparator: { !$0.isNumber }).count, 6)
         Thread.sleep(forTimeInterval: 0.48)
-        capture("lotto-orb-result", from: app)
+        capture("lotto-pull-number-orbs", from: app)
+        Thread.sleep(forTimeInterval: 1.05)
+        capture("lotto-pull-result", from: app)
 
         app.buttons["내 번호에 저장"].tap()
         XCTAssertTrue(app.buttons["저장됨"].exists)
@@ -42,7 +48,7 @@ final class LottoPreviewTests: XCTestCase {
 
         app.buttons["역대 통계"].tap()
         XCTAssertTrue(app.staticTexts["1~1251회 이력"].exists)
-        app.buttons["패턴으로 뽑기"].tap()
+        pull(app.buttons["pattern-pull"], distance: 78, hold: 0.12)
         let pattern = app.descendants(matching: .any).matching(identifier: "pattern-result").firstMatch
         XCTAssertTrue(pattern.exists)
         XCTAssertEqual(pattern.label.split(whereSeparator: { !$0.isNumber }).count, 6)
@@ -55,6 +61,17 @@ final class LottoPreviewTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["역대 조합 뜯어보기"].exists)
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "416회")).firstMatch.exists)
         capture("lotto-pattern-distribution", from: app)
+        app.terminate()
+        app.launch()
+        app.buttons["quick-draw"].tap()
+        XCTAssertTrue(result.exists)
+    }
+
+    @MainActor
+    private func pull(_ orb: XCUIElement, distance: CGFloat, hold: TimeInterval) {
+        let start = orb.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = start.withOffset(CGVector(dx: 0, dy: distance))
+        start.press(forDuration: 0.08, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: hold)
     }
 
     @MainActor
