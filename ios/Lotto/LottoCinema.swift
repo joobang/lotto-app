@@ -53,6 +53,11 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
     private static let cobalt = UIColor(red: 0.11, green: 0.29, blue: 0.64, alpha: 1)
     private static let steel = UIColor(red: 0.20, green: 0.29, blue: 0.45, alpha: 1)
     private static let reflectionMap = studioReflection()
+    private static let ballArcs = [
+        vector(-0.40, 0.65, 0.84), vector(0.34, 0.48, 0.38), vector(0.46, 0.29, 1.03),
+        vector(-0.30, -0.33, 0.70), vector(-0.26, -0.48, 0.31), vector(0.53, -0.40, 0.92)
+    ]
+
 
     let scene = SCNScene()
     let camera = SCNNode()
@@ -70,6 +75,7 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
     private var blades: [SCNNode] = []
     private var numberedBalls: [SCNNode] = []
     private var sparks: [SCNNode] = []
+    private var flightLines: [SCNNode] = []
 
     init(reveal: DrawReveal?, origin: CGPoint) {
         self.reveal = reveal
@@ -220,8 +226,10 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
         lens.position = vector(0, 0, 0.65)
         scene.rootNode.addChildNode(lens)
         ring(radius: 1, tube: 0.027, z: 0, material: luminous(Self.gold, amount: 1.17), parent: wave)
+        ring(radius: 0.86, tube: 0.014, z: -0.08, material: luminous(Self.cyan, amount: 0.74), parent: wave)
         wave.position = vector(0, 0, 0.65)
         scene.rootNode.addChildNode(wave)
+        buildFlightLines()
 
         for number in numbers {
             let ball = makeNumberedBall(number)
@@ -239,6 +247,23 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
             let spark = SCNNode(geometry: shapes[index % shapes.count])
             sparks.append(spark)
             scene.rootNode.addChildNode(spark)
+        }
+    }
+
+    private func buildFlightLines() {
+        let cool = luminous(Self.cyan, amount: 0.46)
+        let warm = luminous(Self.gold, amount: 0.58)
+        let blue = SCNCylinder(radius: 0.010, height: 1.2)
+        blue.radialSegmentCount = 5
+        blue.materials = [cool]
+        let gold = SCNCylinder(radius: 0.014, height: 1.2)
+        gold.radialSegmentCount = 5
+        gold.materials = [warm]
+        for index in 0..<46 {
+            let streak = SCNNode(geometry: index.isMultiple(of: 6) ? gold : blue)
+            streak.eulerAngles.x = .pi / 2
+            flightLines.append(streak)
+            scene.rootNode.addChildNode(streak)
         }
     }
 
@@ -263,33 +288,40 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func animate(elapsed: Double, aspect: CGFloat) {
-        let lensIn = segment(elapsed, from: 0, length: 0.34)
-        let arrival = easeOut(segment(elapsed, from: 0.32, length: 0.64))
-        let pivot = sin(lensIn * .pi) * 1.83
-        let sweep = pow(lensIn, 1.45)
-        let opening = easeOut(segment(elapsed, from: 0.22, length: 0.38))
-        let pulse = glow(elapsed, at: 0.29, decay: 12)
-        let last = glow(elapsed, at: 0.72, decay: 8)
+        let contact = LottoCutscene.collision
+        let release = contact + LottoCutscene.impactHold
+        let dive = segment(elapsed, from: 0, length: contact)
+        let approach = pow(dive, 1.7)
+        let recoil = easeOut(segment(elapsed, from: release, length: 0.69))
+        let swing = sin(.pi * dive)
+        let jolt = segment(elapsed, from: release, length: 0.23)
+        let shake = sin(jolt * .pi * 4) * pow(1 - jolt, 3)
+        let opening = easeOut(segment(elapsed, from: release, length: 0.39))
+        let pulse = glow(elapsed, at: contact, decay: 11)
+        let finale = glow(elapsed, at: 1.02, decay: 12)
         let squeeze = min(1, Double(aspect) / 0.47)
-        let impact = sin(segment(elapsed, from: 0.27, length: 0.17) * .pi) * 0.12
 
-        poseCamera(x: -0.31 + 0.81 * pivot - 0.56 * (1 - arrival) * sweep,
-                   y: 0.52 + 0.20 * pivot - 0.69 * sweep + 0.28 * arrival, z: 7.2 - 1.50 * sweep + 4.38 * arrival + impact,
-                   target: vector(0, -0.39 + 0.40 * sweep - 0.12 * arrival, 0),
-                   fov: 50 + 6 * arrival)
-        chamber.eulerAngles.z = Float(-0.07 + 0.11 * sweep - 0.12 * arrival)
-        innerRing.eulerAngles.z = Float(0.15 + 1.14 * opening)
-        impactLight.intensity = 95 + 420 * pulse + 245 * last
-        rimLight.intensity = 220 + 240 * opening
-        seal.opacity = CGFloat(1 - segment(elapsed, from: 0.11, length: 0.18))
+        poseCamera(x: -0.83 + 1.59 * swing + 0.62 * approach + 0.11 * shake,
+                   y: 0.55 + 0.53 * swing - 0.53 * approach + 0.15 * recoil,
+                   z: 7.65 - 4.27 * approach + 6.69 * recoil + 0.16 * shake,
+                   target: vector(0, -0.48 + 0.64 * approach - 0.31 * recoil, 0.05),
+                   fov: 48 + 32 * approach - 24 * recoil,
+                   roll: 0.10 * swing - 0.018 * shake)
+        chamber.eulerAngles.z = Float(-0.08 + 0.18 * approach - 0.17 * recoil)
+        innerRing.eulerAngles.z = Float(0.06 + 1.28 * opening)
+        impactLight.intensity = 95 + 530 * pulse + 168 * finale
+        rimLight.intensity = 220 + 229 * opening
+        seal.opacity = CGFloat(1 - segment(elapsed, from: 0.06, length: 0.14))
         for (index, blade) in blades.enumerated() {
-            let move = easeOut(segment(elapsed, from: 0.18 + 0.014 * Double(index), length: 0.35))
-            blade.position.x = Float(move * 0.71)
-            blade.eulerAngles.z = Float(-move * 0.23)
+            let start = release + 0.014 * Double(index % 3)
+            let move = easeOut(segment(elapsed, from: start, length: 0.30))
+            blade.position.x = Float(move * 0.76)
+            blade.eulerAngles.z = Float(-move * 0.31)
         }
 
         poseCarrier(elapsed)
-        poseImpact(elapsed: elapsed, pulse: pulse, last: last)
+        poseFlightLines(elapsed)
+        poseImpact(elapsed: elapsed, pulse: pulse, finale: finale)
         for (index, ball) in numberedBalls.enumerated() {
             poseBall(ball, index: index, elapsed: elapsed, squeeze: squeeze)
         }
@@ -297,52 +329,69 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
     }
 
     private func poseCarrier(_ elapsed: Double) {
-        let travel = segment(elapsed, from: 0, length: 0.29)
-        let pos = easeOut(travel)
-        carrier.isHidden = travel >= 1
-        let x = Double(origin.x - 0.5) * 2.4 * (1 - pos) - sin(.pi * travel) * 0.28
-        let y = -(Double(origin.y - 0.5) * 5.5) * (1 - pos)
-        carrier.position = vector(x, y, 2.31 - pos * 2.75)
-        let scale = 0.74 + sin(travel * .pi) * 0.27 - travel * 0.22
+        let travel = segment(elapsed, from: 0, length: LottoCutscene.collision)
+        let advance = 0.24 * travel + 0.76 * travel * travel
+        carrier.isHidden = elapsed >= LottoCutscene.collision + LottoCutscene.impactHold
+        let x = Double(origin.x - 0.5) * 2.4 * (1 - advance) + sin(.pi * travel) * 0.34
+        let y = -Double(origin.y - 0.5) * 5.5 * (1 - advance)
+        carrier.position = vector(x, y, 2.29 - advance * 2.04)
+        let scale = 0.73 - advance * 0.38
         carrier.scale = vector(scale, scale, scale)
     }
 
-    private func poseImpact(elapsed: Double, pulse: Double, last: Double) {
-        let transient = max(pulse, last * 0.50)
+    private func poseFlightLines(_ elapsed: Double) {
+        let end = LottoCutscene.collision + LottoCutscene.impactHold
+        let flight = segment(elapsed, from: 0.015, length: LottoCutscene.collision - 0.015)
+        let fade = 1 - segment(elapsed, from: end, length: 0.11)
+        let past = flight * flight
+        for (index, line) in flightLines.enumerated() {
+            line.isHidden = flight == 0 || fade == 0
+            let angle = Double(index) * 2.39996
+            let seed = Double((index * 29 + 7) % 53) / 53
+            let radius = 1.45 + seed * 2.58
+            let depth = -1.35 + Double(index % 7) * 0.54 + past * (1.5 + seed)
+            line.position = vector(cos(angle) * radius, sin(angle) * radius, depth)
+            line.scale.y = Float(0.40 + past * (0.67 + seed))
+            line.opacity = CGFloat(min(1, flight * 2.8) * fade * (0.34 + seed * 0.60))
+        }
+    }
+
+    private func poseImpact(elapsed: Double, pulse: Double, finale: Double) {
+        let transient = max(pulse, finale * 0.44)
         lens.opacity = CGFloat(transient)
-        let flareScale = 0.45 + segment(elapsed, from: 0.28, length: 0.16) * 2.42
-        lens.scale = vector(flareScale, flareScale, flareScale * 0.36)
-        let pulseStart = elapsed < 0.72 ? 0.29 : 0.72
-        let orbit = segment(elapsed, from: pulseStart, length: 0.59)
-        let radius = 0.25 + easeOut(orbit) * 3.9
-        wave.scale = vector(radius, radius, 0.34)
-        wave.opacity = CGFloat(pow(1 - orbit, 2) * transient)
+        let flareScale = 0.40 + segment(elapsed, from: LottoCutscene.collision, length: 0.17) * 2.03
+        lens.scale = vector(flareScale * 1.29, flareScale * 0.66, flareScale * 0.30)
+        let start = elapsed < 1.02 ? LottoCutscene.collision : 1.02
+        let response = segment(elapsed, from: start, length: 0.56)
+        let radius = 0.22 + easeOut(response) * 4.65
+        wave.scale = vector(radius, radius, 0.44)
+        wave.opacity = CGFloat(pow(1 - response, 2) * transient)
     }
 
     private func poseBall(_ ball: SCNNode, index: Int, elapsed: Double, squeeze: Double) {
         let delay = LottoCutscene.firstBall + LottoCutscene.ballInterval * Double(index)
-        let phase = segment(elapsed, from: delay, length: 0.37)
+        let phase = segment(elapsed, from: delay, length: LottoCutscene.ballFlight)
         ball.isHidden = elapsed < delay
         let travel = easeOut(phase)
+        let arc = sin(phase * .pi) * pow(1 - phase, 0.45)
         let side = Double(index % 3 - 1)
-        let row = index < 3 ? 0.80 : -0.42
-        let pitch = sin(phase * .pi)
-        let swing = side * pitch * 0.29
-        let rebound = sin(phase * .pi * 3.6) * pow(1 - phase, 1.7) * 0.22
+        let row = index < 3 ? 0.78 : -0.43
+        let bow = Self.ballArcs[index]
+        let rebound = sin(phase * .pi * 2.6) * pow(1 - phase, 2) * 0.12
 
-        ball.position = vector((side * 1.28 + swing) * squeeze * travel,
-                               (row + abs(side) * 0.12 - rebound) * travel,
-                               -0.14 + travel * 1.65 + pitch * 0.44)
-        ball.eulerAngles = vector((index < 3 ? 0.88 : -1.01) * (1 - travel),
-                                  side * -1.63 * (1 - travel),
-                                  side * 0.79 * (1 - travel))
-        let scale = (0.34 + 0.66 * travel + 0.12 * pitch) * squeeze
+        ball.position = vector((side * 1.28 * travel + Double(bow.x) * arc) * squeeze,
+                               (row + abs(side) * 0.11) * travel + Double(bow.y) * arc - rebound,
+                               -0.12 + travel * 1.63 + Double(bow.z) * arc)
+        ball.eulerAngles = vector(Double(bow.y) * 2.25 * (1 - phase),
+                                  -Double(bow.x) * 2.14 * (1 - phase),
+                                  Double(bow.x) * 0.85 * (1 - travel))
+        let scale = (0.33 + 0.67 * travel + 0.12 * arc) * squeeze
         ball.scale = vector(scale, scale, scale)
     }
 
     private func poseSparks(_ elapsed: Double) {
         for (index, spark) in sparks.enumerated() {
-            let start = index.isMultiple(of: 3) ? 0.70 : 0.27
+            let start = index.isMultiple(of: 3) ? 1.02 : LottoCutscene.collision
             let age = segment(elapsed, from: start, length: 0.68)
             spark.isHidden = elapsed < start || age >= 1
             let angle = Double(index) * 2.39996
@@ -355,9 +404,10 @@ final class CinemaScene: NSObject, SCNSceneRendererDelegate {
         }
     }
 
-    private func poseCamera(x: Double, y: Double, z: Double, target: SCNVector3, fov: Double) {
+    private func poseCamera(x: Double, y: Double, z: Double, target: SCNVector3, fov: Double, roll: Double = 0) {
         camera.position = vector(x, y, z)
-        camera.look(at: target)
+        // An absolute up direction keeps the temporary launch tilt from accumulating frame by frame.
+        camera.look(at: target, up: vector(-sin(roll), cos(roll), 0), localFront: vector(0, 0, -1))
         camera.camera?.fieldOfView = CGFloat(fov)
     }
 

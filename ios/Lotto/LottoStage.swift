@@ -178,9 +178,13 @@ struct DrawReveal: Identifiable {
 }
 
 struct LottoCutscene: View {
-    static let firstBall = 0.31
-    static let ballInterval = 0.058
-    static let duration = 1.90
+    static let collision = 0.27
+    static let impactHold = 0.055
+    static let firstBall = 0.36
+    static let ballInterval = 0.088
+    static let ballFlight = 0.29
+    static let landingCue = 0.18
+    static let duration = 1.94
 
     let reveal: DrawReveal
 
@@ -200,16 +204,20 @@ struct LottoCutscene: View {
                     .frame(maxHeight: .infinity, alignment: .top)
                 TimelineView(.animation) { timeline in
                     let elapsed = timeline.date.timeIntervalSince(reveal.start)
-                    let title = min(1, max(0, (elapsed - 0.59) / 0.24))
-                    VStack(spacing: 10) {
-                        Rectangle().fill(LottoStyle.gold).frame(width: 23, height: 1)
-                        Text(reveal.title)
-                            .font(.system(.title2, design: .serif, weight: .semibold))
-                            .tracking(0.5)
-                            .foregroundStyle(.white)
+                    let title = min(1, max(0, (elapsed - 0.86) / 0.20))
+                    ZStack {
+                        CollisionLight(age: elapsed - Self.collision)
+                        VStack(spacing: 10) {
+                            Rectangle().fill(LottoStyle.gold).frame(width: 26, height: 1)
+                            Text(reveal.title)
+                                .font(.system(.title2, design: .serif, weight: .semibold))
+                                .tracking(0.5)
+                                .foregroundStyle(.white)
+                        }
+                        .opacity(title)
+                        .offset(y: 7 * (1 - title))
+                        .position(x: bounds.size.width / 2, y: bounds.size.height * 0.23)
                     }
-                    .opacity(title)
-                    .position(x: bounds.size.width / 2, y: bounds.size.height * 0.23)
                 }
             }
         }
@@ -224,9 +232,39 @@ private struct RevealDissolve: ViewModifier {
     func body(content: Content) -> some View {
         TimelineView(.animation) { timeline in
             let elapsed = timeline.date.timeIntervalSince(start)
-            let exit = min(1, max(0, (elapsed - 1.62) / 0.28))
+            let exit = min(1, max(0, (elapsed - 1.64) / (LottoCutscene.duration - 1.64)))
             let enter = min(1, max(0, elapsed / 0.075))
             content.opacity(enter * (1 - exit * exit))
+        }
+    }
+}
+
+private struct CollisionLight: View {
+    let age: Double
+
+    var body: some View {
+        GeometryReader { geometry in
+            if age >= 0 && age < 0.28 {
+                let exposure = exp(-age * 19)
+                let radius = geometry.size.width * (0.23 + 0.40 * (1 - exp(-age * 10)))
+                ZStack {
+                    Circle().fill(RadialGradient(
+                        colors: [.white.opacity(0.84), LottoStyle.gold.opacity(0.36), .clear],
+                        center: .center, startRadius: 0, endRadius: radius
+                    ))
+                    .frame(width: radius * 2, height: radius * 2)
+                    Ellipse().fill(LinearGradient(
+                        colors: [.clear, LottoStyle.gold.opacity(0.64), .white, LottoStyle.gold.opacity(0.64), .clear],
+                        startPoint: .leading, endPoint: .trailing
+                    ))
+                    .frame(width: geometry.size.width * (0.78 + age), height: 5)
+                    .rotationEffect(.degrees(-8))
+                    .blur(radius: 1.1)
+                }
+                .opacity(exposure)
+                .blendMode(.screen)
+                .position(x: geometry.size.width / 2, y: geometry.size.height * 0.45)
+            }
         }
     }
 }

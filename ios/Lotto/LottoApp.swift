@@ -82,13 +82,17 @@ struct LottoHome: View {
             guard let id = reveal?.id else { return }
             let impacts = UIImpactFeedbackGenerator(style: .rigid)
             impacts.prepare()
-            try? await Task.sleep(for: .seconds(LottoCutscene.firstBall))
+            try? await Task.sleep(for: .seconds(LottoCutscene.collision))
+            guard !Task.isCancelled, reveal?.id == id else { return }
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            let firstLanding = LottoCutscene.firstBall + LottoCutscene.landingCue
+            try? await Task.sleep(for: .seconds(firstLanding - LottoCutscene.collision))
             for index in 0..<6 {
                 guard !Task.isCancelled, reveal?.id == id else { return }
                 impacts.impactOccurred(intensity: index == 5 ? 1 : 0.35 + Double(index) * 0.08)
                 if index < 5 { try? await Task.sleep(for: .seconds(LottoCutscene.ballInterval)) }
             }
-            let lastBall = LottoCutscene.firstBall + 5 * LottoCutscene.ballInterval
+            let lastBall = firstLanding + 5 * LottoCutscene.ballInterval
             try? await Task.sleep(for: .seconds(LottoCutscene.duration - lastBall))
             guard !Task.isCancelled, reveal?.id == id else { return }
             reveal = nil
