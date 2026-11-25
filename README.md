@@ -11,3 +11,12 @@
 - [AI 작업 규칙](AGENTS.md)
 
 전 회차 적재와 2단계 통계·분석 API를 로컬에서 검증했다. [LOTTO-01 기록](docs/tasks/LOTTO-01.md) · [LOTTO-03·06 기록](docs/tasks/LOTTO-03-06.md)
+
+## 첫 iPhone 버전
+
+Xcode에서 `ios/Lotto.xcodeproj`를 열고 `Lotto` 스킴으로 iPhone 시뮬레이터를 실행한다. 앱은 번들에 든 1~1251회 이력을 읽고 저장한 조합을 기기에 보관한다.
+
+```sh
+open ios/Lotto.xcodeproj
+xcodebuild -project ios/Lotto.xcodeproj -scheme Lotto -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -parallel-testing-enabled NO CODE_SIGNING_ALLOWED=NO test
+```
