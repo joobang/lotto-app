@@ -14,9 +14,16 @@
 | --- | --- |
 | `GET /draws/latest` | `round`, `drawDate`, `numbers`, `bonus`, `sourceUrl`, `coverage`. 마지막 정상 확인 결과를 반환한다. |
 | `GET /draws/{round}` | 양의 정수 회차. `round`, `drawDate`, `numbers`, `bonus`, `sourceUrl`을 반환한다. |
-| `GET /stats` | `coverage`와 1~45번의 `number`, `count`, `rate`, `lastSeenRound`, `rank`. 동일 횟수는 공동 순위를 사용한다. |
-| `POST /analysis` | `numbers` 길이 6. 선택 번호, `coverage`, 정확히 0~6개 일치한 분포, 번호별 통계, 유사 회차 최대 10개, 15개 번호 쌍·홀짝·번호대·합계 분포를 반환한다. |
+| `GET /stats` | `coverage`와 `numberStats` 배열. 각 항목은 1~45번의 `number`, `count`, `rate`, `lastSeenRound`, `rank`다. 동일 횟수는 공동 순위를 사용한다. |
+| `POST /analysis` | `numbers` 길이 6. 정렬한 `numbers`, `coverage`, `summary`, `matchDistribution`, `numberStats`, `similarDraws`, `patterns`를 반환한다. |
 | `POST /recommendations` | `strategy`는 `historical_frequency` 또는 `historical_balance`. `lockedNumbers`는 0~5개, `count`는 1·3·5 중 하나다. `coverage`와 결과별 `numbers`, `explanation`을 반환한다. |
+
+## 분석 응답 필드
+
+- `summary`는 `maximumMatches`와 6개 완전 일치 횟수인 `exactMatches`로 구성한다. `matchDistribution`의 각 항목은 `matchedCount` 0~6과 그에 해당하는 `count`다.
+- `numberStats`는 `GET /stats`와 같은 형식으로 입력 번호 6개에 해당하는 항목을 반환한다. 한 번도 나오지 않은 번호의 `lastSeenRound`는 `null`이다. 순위는 동일 횟수에서 같은 등수를 사용하는 경쟁 순위다.
+- `patterns`는 내 조합의 `oddCount`, 번호대별 개수인 `bands`, `sum`, `sumPercentile`과 `pairs`를 담는다. `pairs`는 `first`, `second`, `count`를 포함한 15개 항목이다. `oddDistribution`, `bandDistribution`, `sumDistribution`은 같은 기간 전체 추첨의 분포다.
+- 분석은 HTTP 200으로 반환하며 재사용 캐시에 저장하지 않도록 한다. 유효한 입력이지만 저장된 이력이 없으면 `LOTTO_HISTORY_NOT_READY`, 입력이 유효하지 않으면 `INVALID_LOTTO_NUMBERS`를 반환한다.
 
 ## 회차 비교와 계산
 
