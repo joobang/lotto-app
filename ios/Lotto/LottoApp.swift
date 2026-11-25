@@ -77,7 +77,16 @@ struct LottoHome: View {
         }
         .task(id: reveal?.id) {
             guard let id = reveal?.id else { return }
-            try? await Task.sleep(for: .seconds(LottoCutscene.duration))
+            let impacts = UIImpactFeedbackGenerator(style: .rigid)
+            impacts.prepare()
+            try? await Task.sleep(for: .seconds(LottoCutscene.firstCard))
+            for index in 0..<6 {
+                guard !Task.isCancelled, reveal?.id == id else { return }
+                impacts.impactOccurred(intensity: index == 5 ? 1 : 0.35 + Double(index) * 0.08)
+                if index < 5 { try? await Task.sleep(for: .seconds(LottoCutscene.cardInterval)) }
+            }
+            let lastCard = LottoCutscene.firstCard + 5 * LottoCutscene.cardInterval
+            try? await Task.sleep(for: .seconds(LottoCutscene.duration - lastCard))
             guard !Task.isCancelled, reveal?.id == id else { return }
             reveal = nil
         }
@@ -247,8 +256,12 @@ struct LottoHome: View {
     }
 
     private func showCutscene(_ numbers: [Int], title: String) {
-        if !reduceMotion { reveal = DrawReveal(numbers: numbers, title: title) }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        if reduceMotion {
+            reveal = nil
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        } else {
+            reveal = DrawReveal(numbers: numbers, title: title)
+        }
     }
 
     private func action(_ label: String, _ symbol: String, perform: @escaping () -> Void) -> some View {
