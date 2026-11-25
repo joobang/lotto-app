@@ -122,7 +122,7 @@ struct LottoHome: View {
                     .frame(maxWidth: .infinity, minHeight: 45)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(LottoStyle.violet)
+            .foregroundStyle(LottoStyle.cobalt)
             .padding(.top, -9)
             .accessibilityIdentifier("quick-draw")
 
@@ -148,7 +148,7 @@ struct LottoHome: View {
             LottoHeading(title: "내 번호", subtitle: "자주 쓰는 조합을 역대 당첨번호와 비교해요.")
             if saved.isEmpty {
                 VStack(alignment: .leading, spacing: 11) {
-                    Image(systemName: "bookmark").font(.title2).foregroundStyle(LottoStyle.violet)
+                    Image(systemName: "bookmark").font(.title2).foregroundStyle(LottoStyle.cobalt)
                     Text("아직 저장한 번호가 없어요").font(.headline)
                     Text("번호를 직접 고르거나 뽑기 결과를 저장해 보세요.")
                         .font(.subheadline).foregroundStyle(LottoStyle.muted)
@@ -170,7 +170,7 @@ struct LottoHome: View {
                         Label("역대 회차 비교", systemImage: "arrow.up.right")
                             .font(.subheadline.weight(.bold))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    }.padding(.top, 2).foregroundStyle(LottoStyle.violet)
+                    }.padding(.top, 2).foregroundStyle(LottoStyle.cobalt)
                 }.lottoCard()
             }
             PrimaryLottoButton(label: "번호 직접 추가", symbol: "plus") {
@@ -221,13 +221,13 @@ struct LottoHome: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.plain)
-            .foregroundStyle(LottoStyle.lime)
+            .foregroundStyle(LottoStyle.gold)
             if let pick = recommendation {
                 BallRow(numbers: pick.numbers, stage: true)
                     .accessibilityIdentifier("pattern-result")
                 PatternDetails(pattern: pick.pattern, sum: pick.numbers.reduce(0, +))
                 Text("이 구성은 역대 \(pick.matchingRounds)회 나왔어요.")
-                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.lime)
+                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
                 HStack(spacing: 10) {
                     let isSaved = saved.contains { $0.numbers == pick.numbers }
                     action(isSaved ? "저장됨" : "저장", "bookmark") { save(numbers: pick.numbers) }
@@ -245,7 +245,7 @@ struct LottoHome: View {
         .foregroundStyle(.white)
         .padding(17)
         .background(
-            LinearGradient(colors: [LottoStyle.night, LottoStyle.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+            LinearGradient(colors: [LottoStyle.night, LottoStyle.cobalt], startPoint: .topLeading, endPoint: .bottomTrailing),
             in: RoundedRectangle(cornerRadius: 24)
         )
     }
@@ -260,7 +260,7 @@ struct LottoHome: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 54)
                     .foregroundStyle(tab == page ? LottoStyle.ink : LottoStyle.muted)
-                    .background(tab == page ? LottoStyle.lime : .clear, in: RoundedRectangle(cornerRadius: 16))
+                    .background(tab == page ? LottoStyle.gold : .clear, in: RoundedRectangle(cornerRadius: 16))
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(tab == page ? .isSelected : [])

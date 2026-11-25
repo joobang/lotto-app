@@ -11,7 +11,7 @@ struct CountRow: View {
             GeometryReader { proxy in
                 Capsule().fill(LottoStyle.line)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(LottoStyle.violet)
+                        Capsule().fill(LottoStyle.cobalt)
                             .frame(width: proxy.size.width * CGFloat(count) / CGFloat(max(1, maximum)))
                     }
             }.frame(height: 7).accessibilityHidden(true)
@@ -89,7 +89,7 @@ struct AnalysisView: View {
     @ViewBuilder private var summary: some View {
         if let closest = analysis.matches.first {
             VStack(alignment: .leading, spacing: 12) {
-                Text("역대 최고 일치").font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.lime)
+                Text("역대 최고 일치").font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
                 Text("\(analysis.best)개가 함께\n나온 적이 있어요")
                     .font(.system(.title, design: .rounded, weight: .black))
                     .foregroundStyle(.white)
@@ -97,12 +97,12 @@ struct AnalysisView: View {
                     .font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.86))
                 BallRow(numbers: line.numbers, hits: closest.hits, stage: true)
                 Button("닮은 회차 더 보기", systemImage: "arrow.up.right") { page = .rounds }
-                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.lime)
+                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
                     .padding(.top, 3)
             }
             .padding(18)
             .background(
-                LinearGradient(colors: [LottoStyle.night, LottoStyle.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+                LinearGradient(colors: [LottoStyle.night, LottoStyle.cobalt], startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: RoundedRectangle(cornerRadius: 24)
             )
             VStack(alignment: .leading, spacing: 12) {
@@ -134,7 +134,7 @@ struct AnalysisView: View {
                         Spacer()
                         Text("\(match.hits.count)개 일치")
                             .font(.caption.weight(.bold)).padding(8)
-                            .background(LottoStyle.lime, in: Capsule())
+                            .background(LottoStyle.gold, in: Capsule())
                     }
                     Text("당첨번호").font(.caption.weight(.semibold)).foregroundStyle(LottoStyle.muted)
                     BallRow(numbers: match.draw.numbers, hits: match.hits)
@@ -228,7 +228,7 @@ struct NumberEditor: View {
                     }
                 }.lottoCard()
                 if duplicate {
-                    Text("이미 저장한 조합이에요.").font(.subheadline).foregroundStyle(LottoStyle.violet)
+                    Text("이미 저장한 조합이에요.").font(.subheadline).foregroundStyle(LottoStyle.cobalt)
                 }
                 PrimaryLottoButton(label: "조합 저장", symbol: "bookmark.fill") {
                     let label = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -299,7 +299,7 @@ struct HistoricalPatternSummary: View {
                 }.padding(.vertical, 11)
             }
             .font(.subheadline.weight(.semibold))
-            .tint(LottoStyle.violet)
+            .tint(LottoStyle.cobalt)
         }
         .lottoCard()
     }
@@ -316,7 +316,7 @@ struct HistoricalPatternSummary: View {
             GeometryReader { geometry in
                 Capsule().fill(LottoStyle.line)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(LottoStyle.violet)
+                        Capsule().fill(LottoStyle.cobalt)
                             .frame(width: geometry.size.width * share)
                     }
             }.frame(height: 5).accessibilityHidden(true)

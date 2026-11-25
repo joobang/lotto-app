@@ -16,7 +16,7 @@ final class LottoPreviewTests: XCTestCase {
         capture("lotto-pull-cutscene", from: app)
         XCTAssertTrue(result.exists)
         XCTAssertEqual(result.label.split(whereSeparator: { !$0.isNumber }).count, 6)
-        Thread.sleep(forTimeInterval: 0.48)
+        Thread.sleep(forTimeInterval: 0.64)
         capture("lotto-pull-number-orbs", from: app)
         Thread.sleep(forTimeInterval: 1.05)
         capture("lotto-pull-result", from: app)
@@ -55,7 +55,7 @@ final class LottoPreviewTests: XCTestCase {
         XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "이 구성은 역대")).firstMatch.exists)
         XCTAssertTrue(app.buttons["저장"].exists)
         // This capture shows the result card after the cutscene has cleared.
-        Thread.sleep(forTimeInterval: 1.62)
+        Thread.sleep(forTimeInterval: 1.90)
         capture("lotto-pattern-result", from: app)
         app.swipeUp()
         XCTAssertTrue(app.staticTexts["역대 조합 뜯어보기"].exists)
