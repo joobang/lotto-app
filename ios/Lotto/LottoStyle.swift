@@ -8,6 +8,16 @@ enum LottoStyle {
     static let lime = Color(red: 0.86, green: 0.96, blue: 0.44)
     static let violet = Color(red: 0.31, green: 0.23, blue: 0.66)
     static let line = ink.opacity(0.09)
+
+    static func drawBallTint(_ number: Int) -> Color {
+        switch number {
+        case 1...10: return LottoStyle.lime
+        case 11...20: return Color(red: 0.83, green: 0.74, blue: 1)
+        case 21...30: return Color(red: 1, green: 0.80, blue: 0.68)
+        case 31...40: return Color(red: 0.69, green: 0.88, blue: 1)
+        default: return Color(red: 1, green: 0.73, blue: 0.85)
+        }
+    }
 }
 
 struct NumberBall: View {
@@ -19,13 +29,7 @@ struct NumberBall: View {
     private var color: Color {
         if marked { return LottoStyle.lime }
         guard stage else { return Color(red: 0.93, green: 0.91, blue: 0.99) }
-        switch number {
-        case 1...10: return LottoStyle.lime
-        case 11...20: return Color(red: 0.83, green: 0.74, blue: 1)
-        case 21...30: return Color(red: 1, green: 0.80, blue: 0.68)
-        case 31...40: return Color(red: 0.69, green: 0.88, blue: 1)
-        default: return Color(red: 1, green: 0.73, blue: 0.85)
-        }
+        return LottoStyle.drawBallTint(number)
     }
 
     var body: some View {

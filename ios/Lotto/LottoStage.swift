@@ -111,345 +111,268 @@ struct DrawReveal: Identifiable {
 }
 
 struct LottoCutscene: View {
-    static let firstCard = 0.08
-    static let cardInterval = 0.057
-    static let finale = 0.47
-    static let duration = 1.43
+    static let firstBall = 0.31
+    static let ballInterval = 0.058
+    static let duration = 1.62
+    private static let lastImpact = 0.70
+    private static let abyss = Color(red: 0.023, green: 0.026, blue: 0.105)
+    private static let ice = Color(red: 0.37, green: 0.91, blue: 1)
+    private static let gold = Color(red: 1, green: 0.81, blue: 0.49)
+    private static let vortex = UIImage(named: "draw-vortex.jpg")
 
     let reveal: DrawReveal
 
     var body: some View {
         TimelineView(.animation) { time in
             let elapsed = max(0, time.date.timeIntervalSince(reveal.start))
-            GeometryReader { screen in
-                let width = min(screen.size.width - 40, screen.size.height * 0.56, 440)
-                let cell = (width - 18) / 3
-                let height = cell * 1.19
-                let centerY = screen.size.height * 0.51
-                let exit = progress(elapsed, from: 1.17, over: Self.duration - 1.17)
+            GeometryReader { bounds in
+                let size = bounds.size
+                let diameter = min(size.width * 0.255, size.height * 0.20, 124)
+                let gate = CGPoint(x: size.width * 0.50, y: size.height * 0.425)
+                let center = CGPoint(x: gate.x, y: size.height * 0.56)
+                let fade = ramp(elapsed, start: 1.33, length: Self.duration - 1.33)
+
                 ZStack {
-                    RewardBackdrop(elapsed: elapsed)
-                    RewardPrism(elapsed: elapsed, size: min(width * 0.52, 192))
-                        .position(x: screen.size.width / 2, y: centerY - 22)
-                    VStack(spacing: 16) {
-                        title(elapsed: elapsed)
-                        VStack(spacing: 9) {
-                            ForEach(0..<2, id: \.self) { row in
-                                HStack(spacing: 9) {
-                                    ForEach(0..<3, id: \.self) { column in
-                                        let index = row * 3 + column
-                                        rewardCell(index: index, elapsed: elapsed, width: cell, height: height)
-                                    }
-                                }
-                            }
-                        }
-                        .frame(width: width)
-                        progressTrack(elapsed: elapsed)
+                    environment(size: size, elapsed: elapsed)
+                    optics(gate: gate, elapsed: elapsed)
+                    heading(elapsed: elapsed)
+                        .position(x: center.x, y: center.y - diameter * 1.56)
+                    ForEach(Array(reveal.numbers.enumerated()), id: \.offset) { index, number in
+                        let anchor = slot(index: index, center: center, diameter: diameter)
+                        flyingNumber(number, index: index, elapsed: elapsed,
+                                     from: gate, to: anchor, diameter: diameter)
                     }
-                    .frame(width: width)
-                    .position(x: screen.size.width / 2, y: centerY)
                 }
-                .opacity(1 - exit * exit)
+                .opacity(1 - fade * fade)
             }
         }
         .ignoresSafeArea()
     }
 
-    private func title(elapsed: Double) -> some View {
-        VStack(spacing: 5) {
-            HStack(spacing: 9) {
-                Capsule().fill(RewardPalette.gold.opacity(0.58)).frame(width: 24, height: 1)
-                Image(systemName: "sparkle")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(RewardPalette.gold)
-                Capsule().fill(RewardPalette.gold.opacity(0.58)).frame(width: 24, height: 1)
+    private func environment(size: CGSize, elapsed: Double) -> some View {
+        let dive = eased(ramp(elapsed, start: 0, length: 0.32))
+        let settle = ramp(elapsed, start: 0.28, length: 0.42)
+        return ZStack {
+            Self.abyss
+            if let vortex = Self.vortex {
+                Image(uiImage: vortex)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: size.width, height: size.height)
+                    .rotationEffect(.degrees(-11 * (1 - dive) + 4 * settle))
+                    .scaleEffect(1.06 + 0.44 * (1 - dive) + 0.08 * settle)
+                    .brightness(-0.20 * (1 - dive) - 0.08 * settle)
             }
-            Text(reveal.title)
-                .font(.system(.title, design: .rounded, weight: .black))
-                .foregroundStyle(.white)
-                .shadow(color: RewardPalette.iris, radius: 14)
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
+            LinearGradient(colors: [Self.abyss.opacity(0.53), .clear, .clear, Self.abyss.opacity(0.61)],
+                           startPoint: .top, endPoint: .bottom)
+            RadialGradient(colors: [Self.abyss.opacity(0.61), Self.abyss.opacity(0.21), .clear],
+                           center: UnitPoint(x: 0.50, y: 0.55), startRadius: size.width * 0.06, endRadius: size.width * 0.53)
+                .opacity(settle)
         }
-        .opacity(progress(elapsed, from: 0.06, over: 0.14))
+        .clipped()
     }
 
-    private func rewardCell(index: Int, elapsed: Double, width: CGFloat, height: CGFloat) -> some View {
-        let age = elapsed - Self.firstCard - Double(index) * Self.cardInterval
-        let entry = progress(age, from: 0, over: 0.105)
-        let travel = pow(1 - entry, 3)
-        let impact = sin(.pi * progress(age, from: 0.025, over: 0.21))
-        let tint = RewardPalette.cards[index]
-        let direction = Double(index % 3 - 1)
+    private func heading(elapsed: Double) -> some View {
+        let legibility = ramp(elapsed, start: 0.46, length: 0.23)
+        return Text(reveal.title)
+            .font(.system(.title2, design: .rounded, weight: .black))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Self.abyss.opacity(0.58), in: Capsule())
+            .shadow(color: .black.opacity(0.45), radius: 6, y: 2)
+            .opacity(legibility)
+    }
+
+    private func slot(index: Int, center: CGPoint, diameter: CGFloat) -> CGPoint {
+        let lane = Double(index % 3 - 1)
+        let row = index < 3 ? -0.62 : 0.67
+        return CGPoint(x: center.x + lane * diameter * 1.19,
+                       y: center.y + (row + abs(lane) * (index < 3 ? 0.10 : -0.06)) * diameter)
+    }
+
+    private func flyingNumber(_ number: Int, index: Int, elapsed: Double, from gate: CGPoint,
+                              to anchor: CGPoint, diameter: CGFloat) -> some View {
+        let age = elapsed - Self.firstBall - Self.ballInterval * Double(index)
+        let entry = ramp(age, start: 0, length: 0.115)
+        let travel = eased(entry)
+        let pitch = sin(entry * .pi) * diameter * (index < 3 ? -0.47 : 0.41)
+        let impact = sin(.pi * ramp(age, start: 0.06, length: 0.24))
+        let tint = LottoStyle.drawBallTint(number)
+        let origin = interpolate(gate, anchor, travel)
+        let position = CGPoint(x: origin.x, y: origin.y + pitch)
 
         return ZStack {
-            CutCorner().fill(RewardPalette.base.opacity(0.48))
-                .overlay(CutCorner().strokeBorder(.white.opacity(0.20), lineWidth: 1))
-                .overlay(Image(systemName: "diamond").foregroundStyle(.white.opacity(0.24)))
-                .opacity(progress(elapsed, from: 0.045, over: 0.07) * (1 - entry))
-
             if age >= 0 {
-                RewardCard(number: reveal.numbers[index], tint: tint, age: age, width: width)
-                    .frame(width: width, height: height)
-                    .scaleEffect(1 - 0.45 * travel + 0.10 * impact)
-                    .rotation3DEffect(.degrees(72 * travel), axis: (x: 1, y: -direction * 0.65, z: 0), perspective: 0.50)
-                    .offset(x: -direction * width * 0.66 * travel,
-                            y: height * (index < 3 ? 0.6 : -0.6) * travel)
+                if entry < 1 {
+                    LaunchTrail(from: gate, to: position, color: tint)
+                        .opacity(0.9 * (1 - entry))
+                }
+                if age >= 0.09 && age < 0.39 {
+                    SparkSpray(color: tint, phase: ramp(age, start: 0.09, length: 0.30))
+                        .frame(width: diameter * 2, height: diameter * 2)
+                        .position(anchor)
+                }
+                RevealSphere(number: number, tint: tint, diameter: diameter, impact: impact)
+                    .rotationEffect(.degrees((index.isMultiple(of: 2) ? 50 : -50) * (1 - travel)))
+                    .scaleEffect(0.27 + travel * 0.73 + 0.095 * impact)
                     .opacity(min(1, entry * 3))
-            }
-        }
-        .frame(width: width, height: height)
-        .overlay {
-            if age > 0.075 && age < 0.32 {
-                CardBurst(age: age - 0.075, tint: tint)
-                    .frame(width: width * 1.65, height: height * 1.48)
+                    .position(position)
             }
         }
     }
 
-    private func progressTrack(elapsed: Double) -> some View {
-        HStack(spacing: 5) {
-            ForEach(0..<6) { index in
-                let landed = elapsed >= Self.firstCard + Double(index) * Self.cardInterval
-                Capsule().fill(landed ? RewardPalette.gold : .white.opacity(0.18))
-                    .frame(width: 17, height: 3)
-                    .shadow(color: landed ? RewardPalette.gold.opacity(0.7) : .clear, radius: 4)
+    private func optics(gate: CGPoint, elapsed: Double) -> some View {
+        Canvas { context, size in
+            if elapsed < 0.30 {
+                let speed = ramp(elapsed, start: 0, length: 0.30)
+                let start = CGPoint(x: size.width * 0.93, y: size.height * 0.13)
+                let bend = CGPoint(x: size.width * 0.06, y: size.height * 0.19)
+                func trajectory(_ t: Double) -> CGPoint {
+                    let step = t * t
+                    return interpolate(interpolate(start, bend, step), interpolate(bend, gate, step), step)
+                }
+                for index in 0..<29 {
+                    let end = speed - Double(index) * 0.011
+                    guard end > 0 else { break }
+                    var shard = Path()
+                    shard.move(to: trajectory(max(0, end - 0.026)))
+                    shard.addLine(to: trajectory(end))
+                    let trail = 1 - Double(index) / 29
+                    context.stroke(shard, with: .color(Self.ice.opacity(trail * 0.48)), lineWidth: 4 + 15 * trail)
+                    context.stroke(shard, with: .color(.white.opacity(trail)), lineWidth: 5 * trail)
+                }
+                let head = trajectory(speed)
+                let core = CGRect(x: head.x - 5, y: head.y - 5, width: 10, height: 10)
+                context.fill(Path(ellipseIn: core), with: .color(.white))
             }
-        }
-        .opacity(progress(elapsed, from: 0.08, over: 0.12))
-    }
-}
-
-private func progress(_ value: Double, from start: Double, over duration: Double) -> Double {
-    min(1, max(0, (value - start) / duration))
-}
-
-private enum RewardPalette {
-    static let base = Color(red: 0.035, green: 0.035, blue: 0.13)
-    static let gold = Color(red: 1, green: 0.82, blue: 0.48)
-    static let iris = Color(red: 0.59, green: 0.33, blue: 1)
-    static let ice = Color(red: 0.29, green: 0.93, blue: 1)
-    static let pink = Color(red: 1, green: 0.39, blue: 0.78)
-    static let cards = [ice, iris, pink, Color(red: 0.38, green: 1, blue: 0.78),
-                        Color(red: 0.42, green: 0.66, blue: 1), gold]
-}
-
-private struct CutCorner: InsettableShape {
-    var insetAmount: CGFloat = 0
-
-    func path(in rect: CGRect) -> Path {
-        let bounds = rect.insetBy(dx: insetAmount, dy: insetAmount)
-        let c = min(bounds.width, bounds.height) * 0.13
-        return Path { path in
-            path.move(to: CGPoint(x: bounds.minX + c, y: bounds.minY))
-            path.addLine(to: CGPoint(x: bounds.maxX - c, y: bounds.minY))
-            path.addLine(to: CGPoint(x: bounds.maxX, y: bounds.minY + c))
-            path.addLine(to: CGPoint(x: bounds.maxX, y: bounds.maxY - c))
-            path.addLine(to: CGPoint(x: bounds.maxX - c, y: bounds.maxY))
-            path.addLine(to: CGPoint(x: bounds.minX + c, y: bounds.maxY))
-            path.addLine(to: CGPoint(x: bounds.minX, y: bounds.maxY - c))
-            path.addLine(to: CGPoint(x: bounds.minX, y: bounds.minY + c))
-            path.closeSubpath()
+            shockwave(context, center: gate, width: size.width,
+                      phase: ramp(elapsed, start: 0.27, length: 0.45), tint: Self.ice)
+            shockwave(context, center: gate, width: size.width,
+                      phase: ramp(elapsed, start: Self.lastImpact, length: 0.60), tint: Self.gold)
         }
     }
 
-    func inset(by amount: CGFloat) -> CutCorner {
-        CutCorner(insetAmount: insetAmount + amount)
+    private func shockwave(_ context: GraphicsContext, center: CGPoint, width: CGFloat,
+                           phase: Double, tint: Color) {
+        guard phase > 0, phase < 1 else { return }
+        let reach = eased(phase)
+        let radius = width * (0.06 + reach * 0.95)
+        let oval = CGRect(x: center.x - radius, y: center.y - radius * 0.81,
+                          width: radius * 2, height: radius * 1.62)
+        let alpha = pow(1 - phase, 1.5)
+        let front = Path(ellipseIn: oval)
+        var bloom = context
+        bloom.addFilter(.blur(radius: 9))
+        bloom.stroke(front, with: .color(tint.opacity(alpha)), lineWidth: 22)
+        context.stroke(front, with: .color(tint.opacity(alpha)), lineWidth: 2.4)
+        for index in 0..<48 {
+            let angle = Double(index) * 2.39996
+            let variation = Double((index * 19 + 11) % 37) / 37
+            let distance = width * (0.07 + reach * (0.32 + variation * 0.84))
+            let trailLength = 3 + 25 * variation * alpha
+            let dx = cos(angle)
+            let dy = sin(angle)
+            let head = CGPoint(x: center.x + dx * distance, y: center.y + dy * distance)
+            let tail = CGPoint(x: head.x - dx * trailLength, y: head.y - dy * trailLength)
+            var path = Path()
+            path.move(to: tail)
+            path.addLine(to: head)
+            context.stroke(path, with: .linearGradient(Gradient(colors: [.clear, tint.opacity(alpha)]),
+                                                       startPoint: tail, endPoint: head), lineWidth: 1 + variation * 2.2)
+        }
     }
 }
 
-private struct RewardCard: View {
+private func ramp(_ value: Double, start: Double, length: Double) -> Double {
+    min(1, max(0, (value - start) / length))
+}
+
+private func eased(_ fraction: Double) -> Double { 1 - pow(1 - fraction, 3) }
+
+private func interpolate(_ a: CGPoint, _ b: CGPoint, _ fraction: Double) -> CGPoint {
+    CGPoint(x: a.x + (b.x - a.x) * fraction, y: a.y + (b.y - a.y) * fraction)
+}
+
+private struct RevealSphere: View {
     let number: Int
     let tint: Color
-    let age: Double
-    let width: CGFloat
+    let diameter: CGFloat
+    let impact: Double
 
     var body: some View {
-        let flare = 1 - progress(age, from: 0.07, over: 0.26)
-        let sweep = progress(age, from: 0.04, over: 0.43)
+        let shade = Color(red: 0.06, green: 0.06, blue: 0.17)
         ZStack {
-            CutCorner()
-                .fill(LinearGradient(colors: [tint.opacity(0.74), RewardPalette.base,
-                                               tint.opacity(0.64), RewardPalette.base],
+            Circle()
+                .fill(RadialGradient(colors: [.white, tint.opacity(0.97), tint, shade],
+                                     center: UnitPoint(x: 0.28, y: 0.21), startRadius: 1, endRadius: diameter * 0.93))
+            Circle()
+                .fill(RadialGradient(colors: [.white.opacity(0.73), tint.opacity(0.13), .clear],
+                                     center: UnitPoint(x: 0.75, y: 0.81), startRadius: 0, endRadius: diameter * 0.42))
+            Circle().strokeBorder(LinearGradient(colors: [.white, .white.opacity(0.1), tint, .white.opacity(0.81)],
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.5)
+            Ellipse().fill(.white.opacity(0.81))
+                .frame(width: diameter * 0.32, height: diameter * 0.085)
+                .blur(radius: diameter * 0.025)
+                .rotationEffect(.degrees(-26))
+                .offset(x: -diameter * 0.19, y: -diameter * 0.31)
+            Circle()
+                .fill(LinearGradient(colors: [.white, Color(red: 0.95, green: 0.96, blue: 1), tint.opacity(0.94)],
                                      startPoint: .topLeading, endPoint: .bottomTrailing))
-            DiamondShape()
-                .strokeBorder(tint.opacity(0.65), lineWidth: 1)
-                .frame(width: width * 0.72, height: width * 0.93)
-                .background {
-                    DiamondShape().fill(
-                        LinearGradient(colors: [tint.opacity(0.23), RewardPalette.base.opacity(0.84), tint.opacity(0.46)],
-                                       startPoint: .top, endPoint: .bottom))
+                .overlay(Circle().strokeBorder(.white.opacity(0.76), lineWidth: 1.4))
+                .frame(width: diameter * 0.62)
+                .shadow(color: shade.opacity(0.57), radius: 3, y: 2)
+                .overlay {
+                    Text(number.formatted(.number.precision(.integerLength(2))))
+                        .font(.system(size: diameter * 0.34, weight: .black, design: .rounded).monospacedDigit())
+                        .foregroundStyle(LottoStyle.ink)
                 }
-            Color.clear.overlay {
-                Capsule()
-                    .fill(LinearGradient(colors: [.clear, .white.opacity(0.77), .clear],
-                                         startPoint: .leading, endPoint: .trailing))
-                    .frame(width: width * 0.38, height: width * 1.95)
-                    .rotationEffect(.degrees(33))
-                    .offset(x: width * (sweep * 2.0 - 1))
-                    .blendMode(.plusLighter)
-                    .opacity(sweep < 1 ? 0.96 : 0)
-            }
-            VStack {
-                Image(systemName: "diamond.fill")
-                    .font(.system(size: 5))
-                Spacer()
-                Image(systemName: "sparkle")
-                    .font(.system(size: 10, weight: .medium))
-            }
-            .padding(.vertical, 9)
-            .foregroundStyle(RewardPalette.gold)
-            Text(number.formatted(.number.precision(.integerLength(2))))
-                .font(.system(size: width * 0.47, weight: .black, design: .rounded).monospacedDigit())
-                .foregroundStyle(.white)
-                .shadow(color: RewardPalette.base, radius: 3, y: 2)
         }
-        .clipShape(CutCorner())
-        .overlay {
-            CutCorner().strokeBorder(
-                LinearGradient(colors: [.white, tint, RewardPalette.gold, tint.opacity(0.6)],
-                               startPoint: .topLeading, endPoint: .bottomTrailing), lineWidth: 1.4)
-        }
-        .overlay {
-            CutCorner().inset(by: 5).strokeBorder(.white.opacity(0.42), lineWidth: 0.65)
-        }
-        .shadow(color: tint.opacity(0.60 + flare * 0.35), radius: 6 + 12 * flare)
+        .frame(width: diameter, height: diameter)
+        .shadow(color: tint.opacity(0.75), radius: 6 + 13 * impact)
+        .shadow(color: shade.opacity(0.64), radius: 6, y: 5)
     }
 }
 
-private struct DiamondShape: InsettableShape {
-    var insetAmount = 0.0
-
-    func path(in rect: CGRect) -> Path {
-        let bounds = rect.insetBy(dx: insetAmount, dy: insetAmount)
-        return Path { path in
-            path.move(to: CGPoint(x: bounds.midX, y: bounds.minY))
-            path.addLine(to: CGPoint(x: bounds.maxX, y: bounds.midY))
-            path.addLine(to: CGPoint(x: bounds.midX, y: bounds.maxY))
-            path.addLine(to: CGPoint(x: bounds.minX, y: bounds.midY))
-            path.closeSubpath()
-        }
-    }
-
-    func inset(by amount: CGFloat) -> DiamondShape {
-        DiamondShape(insetAmount: insetAmount + amount)
-    }
-}
-
-private struct RewardPrism: View {
-    let elapsed: Double
-    let size: CGFloat
+private struct LaunchTrail: View {
+    let from: CGPoint
+    let to: CGPoint
+    let color: Color
 
     var body: some View {
-        let opening = progress(elapsed, from: 0, over: 0.22)
-        let split = progress(elapsed, from: 0.065, over: 0.23)
-        ZStack {
-            DiamondShape()
-                .strokeBorder(.white.opacity(0.66), lineWidth: 1)
-                .frame(width: size * 0.73, height: size)
-                .rotationEffect(.degrees(35 * opening))
-            DiamondShape()
-                .fill(AngularGradient(colors: [RewardPalette.ice, .white, RewardPalette.pink,
-                                               RewardPalette.iris, RewardPalette.gold, RewardPalette.ice], center: .center))
-                .frame(width: size * 0.46, height: size * 0.63)
-                .overlay(Image(systemName: "sparkle").font(.system(size: size * 0.15)).foregroundStyle(.white))
-                .rotation3DEffect(.degrees(120 * opening), axis: (x: 0.3, y: 1, z: 0.2))
+        Canvas { context, _ in
+            var path = Path()
+            path.move(to: from)
+            let bend = CGPoint(x: (from.x + to.x) / 2, y: min(from.y, to.y) - 35)
+            path.addQuadCurve(to: to, control: bend)
+            let light = Gradient(colors: [.clear, color.opacity(0.30), color, .white])
+            let paint = GraphicsContext.Shading.linearGradient(light, startPoint: from, endPoint: to)
+            context.stroke(path, with: paint, style: StrokeStyle(lineWidth: 14, lineCap: .round))
+            context.stroke(path, with: .color(.white.opacity(0.72)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
         }
-        .shadow(color: RewardPalette.ice, radius: size * 0.19)
-        .scaleEffect(0.72 + 0.80 * opening)
-        .opacity(1 - split)
     }
 }
 
-private struct CardBurst: View {
-    let age: Double
-    let tint: Color
+private struct SparkSpray: View {
+    let color: Color
+    let phase: Double
 
     var body: some View {
         Canvas { context, size in
-            let phase = progress(age, from: 0, over: 0.245)
-            let eased = 1 - pow(1 - phase, 2)
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            for index in 0..<14 {
+            let origin = CGPoint(x: size.width / 2, y: size.height / 2)
+            for index in 0..<16 {
                 let angle = Double(index) * 2.39996
-                let radius = size.width * (0.22 + 0.22 * eased)
-                let point = CGPoint(x: center.x + cos(angle) * radius, y: center.y + sin(angle) * radius)
-                let edge = index.isMultiple(of: 4) ? 6.0 : 2.5
-                let shard = CGRect(x: point.x, y: point.y, width: edge, height: edge)
-                context.fill(DiamondShape().path(in: shard), with: .color(
-                    (index.isMultiple(of: 3) ? RewardPalette.gold : tint).opacity(1 - phase)))
-            }
-        }
-    }
-}
-
-private struct RewardBackdrop: View {
-    let elapsed: Double
-
-    var body: some View {
-        ZStack {
-            RewardPalette.base
-            RadialGradient(colors: [RewardPalette.iris.opacity(0.79), Color(red: 0.14, green: 0.11, blue: 0.37), .clear],
-                           center: .center, startRadius: 30, endRadius: 375)
-            Canvas { context, size in
-                let center = CGPoint(x: size.width * 0.5, y: size.height * 0.52)
-                let width = size.width
-                let burst = progress(elapsed, from: LottoCutscene.finale, over: 0.69)
-                let launch = progress(elapsed, from: 0, over: 0.56)
-                ribbons(context, width: width, center: center, burst: burst)
-                debris(context, width: width, center: center, launch: launch, burst: burst)
-            }
-        }
-    }
-
-    private func ribbons(_ context: GraphicsContext, width: CGFloat, center: CGPoint, burst: Double) {
-        for index in 0..<5 {
-            var layer = context
-            layer.translateBy(x: center.x, y: center.y)
-            layer.rotate(by: .degrees(Double(index) * 37 + 66 * elapsed))
-            let radius = width * (0.49 + Double(index) * 0.045 + burst * 0.25)
-            let bounds = CGRect(x: -radius, y: -radius * 0.60, width: radius * 2, height: radius * 1.20)
-            let path = Path(ellipseIn: bounds)
-            let hot = RewardPalette.cards[index]
-            let beam = Gradient(colors: [.clear, hot.opacity(0.77), .white.opacity(0.86), hot.opacity(0.28), .clear])
-            let paint = GraphicsContext.Shading.linearGradient(beam, startPoint: CGPoint(x: bounds.minX, y: bounds.minY),
-                                                               endPoint: CGPoint(x: bounds.maxX, y: bounds.maxY))
-            var glow = layer
-            glow.addFilter(.blur(radius: 10))
-            glow.stroke(path, with: paint, lineWidth: 14)
-            layer.stroke(path, with: paint, lineWidth: 1.8)
-        }
-        if burst > 0 && burst < 1 {
-            let radius = width * (0.29 + burst * 0.90)
-            let bounds = CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)
-            var glow = context
-            glow.addFilter(.blur(radius: 9))
-            let impact = RewardPalette.gold.opacity(1 - burst)
-            glow.stroke(Path(ellipseIn: bounds), with: .color(impact), lineWidth: 23)
-            context.stroke(Path(ellipseIn: bounds), with: .color(impact), lineWidth: 2.2)
-        }
-    }
-
-    private func debris(_ context: GraphicsContext, width: CGFloat, center: CGPoint, launch: Double, burst: Double) {
-        for index in 0..<92 {
-            let angle = Double(index) * 2.39996 + 0.13 * elapsed
-            let strength = Double((index * 41 + 12) % 97) / 97
-            let outward = index.isMultiple(of: 2) ? launch : burst
-            let distance = width * (0.27 + 0.86 * strength + outward * (0.39 + 0.49 * strength))
-            let tail = 2 + strength * (6 + 24 * sin(.pi * outward))
-            let tint = RewardPalette.cards[index % RewardPalette.cards.count]
-            let tip = CGPoint(x: center.x + cos(angle) * distance, y: center.y + sin(angle) * distance)
-            let origin = CGPoint(x: tip.x - cos(angle) * tail, y: tip.y - sin(angle) * tail)
-            let alpha = (0.32 + strength * 0.63) * (1 - 0.54 * outward)
-            var streak = Path()
-            streak.move(to: origin)
-            streak.addLine(to: tip)
-            context.stroke(streak, with: .linearGradient(Gradient(colors: [.clear, tint.opacity(alpha)]),
-                                                         startPoint: origin, endPoint: tip), lineWidth: 1 + 2 * strength)
-            if index.isMultiple(of: 4) {
-                let side = 3 + 5 * strength
-                let bounds = CGRect(x: tip.x, y: tip.y, width: side, height: side * 1.5)
-                context.fill(DiamondShape().path(in: bounds), with: .color(tint.opacity(alpha)))
+                let distance = size.width * (0.21 + eased(phase) * (0.11 + Double(index % 5) * 0.023))
+                let tip = CGPoint(x: origin.x + cos(angle) * distance, y: origin.y + sin(angle) * distance)
+                let side = index.isMultiple(of: 3) ? 5.0 : 2.7
+                let diamond = Path { path in
+                    path.move(to: CGPoint(x: tip.x, y: tip.y - side))
+                    path.addLine(to: CGPoint(x: tip.x + side * 0.50, y: tip.y))
+                    path.addLine(to: CGPoint(x: tip.x, y: tip.y + side))
+                    path.addLine(to: CGPoint(x: tip.x - side * 0.50, y: tip.y))
+                    path.closeSubpath()
+                }
+                context.fill(diamond, with: .color((index.isMultiple(of: 3) ? .white : color).opacity(1 - phase)))
             }
         }
     }
