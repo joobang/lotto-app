@@ -34,6 +34,71 @@ struct DrawAnalysis {
     var bestCount: Int { distribution[best] }
 }
 
+struct DrawPattern: Hashable {
+    let odds: Int
+    let sumBucket: Int
+    let occupiedBands: Int
+    let hasConsecutive: Bool
+
+    init(sortedNumbers: [Int]) {
+        odds = sortedNumbers.count { $0.isMultiple(of: 2) == false }
+        sumBucket = (sortedNumbers.reduce(0, +) - 1) / 30
+        occupiedBands = Set(sortedNumbers.map { ($0 - 1) / 10 }).count
+        hasConsecutive = zip(sortedNumbers, sortedNumbers.dropFirst()).contains { $1 - $0 == 1 }
+    }
+
+    var sumRange: String { "\(sumBucket * 30 + 1)~\((sumBucket + 1) * 30)" }
+}
+
+struct PatternPick {
+    let numbers: [Int]
+    let pattern: DrawPattern
+    let matchingRounds: Int
+}
+
+struct HistoricalPatterns {
+    let roundCount: Int
+    let occurrences: [DrawPattern: Int]
+    let oddsCounts: [Int: Int]
+    let sumCounts: [Int: Int]
+    let bandCounts: [Int: Int]
+    let consecutiveCount: Int
+
+    init(draws: [Draw]) {
+        let patterns = draws.map { DrawPattern(sortedNumbers: $0.numbers.sorted()) }
+        roundCount = patterns.count
+        occurrences = patterns.reduce(into: [:]) { $0[$1, default: 0] += 1 }
+        oddsCounts = patterns.reduce(into: [:]) { $0[$1.odds, default: 0] += 1 }
+        sumCounts = patterns.reduce(into: [:]) { $0[$1.sumBucket, default: 0] += 1 }
+        bandCounts = patterns.reduce(into: [:]) { $0[$1.occupiedBands, default: 0] += 1 }
+        consecutiveCount = patterns.filter(\.hasConsecutive).count
+    }
+
+    func pick() -> PatternPick? {
+        // Estimate the joint distribution from historical counts. Skip sparsely observed shapes
+        // so a randomly generated combination with the selected shape stays practical to find.
+        let minimum = max(1, (roundCount + 99) / 100)
+        let eligible = occurrences.filter { $0.value >= minimum }
+        let total = eligible.values.reduce(0, +)
+        guard total > 0 else { return nil }
+
+        var ticket = Int.random(in: 0..<total)
+        for (pattern, count) in eligible {
+            ticket -= count
+            if ticket < 0 {
+                for _ in 0..<4096 {
+                    let numbers = LottoHistory.random()
+                    if DrawPattern(sortedNumbers: numbers) == pattern {
+                        return PatternPick(numbers: numbers, pattern: pattern, matchingRounds: count)
+                    }
+                }
+                return nil
+            }
+        }
+        return nil
+    }
+}
+
 struct LottoHistory {
     private struct Seed: Decodable { let draws: [Draw] }
 
@@ -48,9 +113,11 @@ struct LottoHistory {
 
     let draws: [Draw]
     let counts: [Int: Int]
+    let patterns: HistoricalPatterns
 
     init(draws: [Draw]) {
         self.draws = draws
+        self.patterns = HistoricalPatterns(draws: draws)
         self.counts = draws.flatMap(\.numbers).reduce(into: [:]) { $0[$1, default: 0] += 1 }
     }
 
@@ -64,21 +131,12 @@ struct LottoHistory {
         numbers.count == 6 && Set(numbers).count == 6 && numbers.allSatisfy { (1...45).contains($0) }
     }
 
-    static func random() -> [Int] { Array((1...45).shuffled().prefix(6)).sorted() }
-
-    func frequencyDraw() -> [Int] {
-        var pool = Array(1...45)
-        var numbers: [Int] = []
-        for _ in 0..<6 {
-            let total = pool.reduce(0) { $0 + counts[$1, default: 0] + 1 }
-            var ticket = Int.random(in: 0..<total)
-            for (index, number) in pool.enumerated() {
-                ticket -= counts[number, default: 0] + 1
-                if ticket < 0 {
-                    numbers.append(pool.remove(at: index))
-                    break
-                }
-            }
+    static func random() -> [Int] {
+        // Floyd sampling chooses six distinct numbers uniformly without shuffling all 45.
+        var numbers: Set<Int> = []
+        for upperBound in 40...45 {
+            let draw = Int.random(in: 1...upperBound)
+            if !numbers.insert(draw).inserted { numbers.insert(upperBound) }
         }
         return numbers.sorted()
     }

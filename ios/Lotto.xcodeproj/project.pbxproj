@@ -6,13 +6,13 @@
 	objects = {
 		000000000000000000000001 = { isa = PBXProject; buildConfigurationList = 00000000000000000000000B; compatibilityVersion = "Xcode 14.0"; developmentRegion = ko; knownRegions = (ko, en, Base); attributes = { TargetAttributes = { 000000000000000000000032 = { TestTargetID = 000000000000000000000005; }; }; }; mainGroup = 000000000000000000000002; productRefGroup = 000000000000000000000004; projectDirPath = ""; targets = (000000000000000000000005, 000000000000000000000032,); };
 		000000000000000000000002 = { isa = PBXGroup; children = (000000000000000000000003, 000000000000000000000033, 000000000000000000000016, 000000000000000000000004,); sourceTree = "<group>"; };
-		000000000000000000000003 = { isa = PBXGroup; children = (00000000000000000000001E, 00000000000000000000001F, 000000000000000000000020, 000000000000000000000021, 000000000000000000000022,); path = Lotto; sourceTree = "<group>"; };
+		000000000000000000000003 = { isa = PBXGroup; children = (00000000000000000000001E, 00000000000000000000001F, 000000000000000000000020, 000000000000000000000021, 000000000000000000000022, 000000000000000000000042, 000000000000000000000044,); path = Lotto; sourceTree = "<group>"; };
 		000000000000000000000004 = { isa = PBXGroup; children = (000000000000000000000006, 000000000000000000000036,); name = Products; sourceTree = "<group>"; };
 		000000000000000000000005 = { isa = PBXNativeTarget; buildConfigurationList = 00000000000000000000000C; buildPhases = (000000000000000000000007, 000000000000000000000008, 000000000000000000000009,); buildRules = (); dependencies = (); name = Lotto; productName = Lotto; productReference = 000000000000000000000006; productType = "com.apple.product-type.application"; };
 		000000000000000000000006 = { isa = PBXFileReference; explicitFileType = wrapper.application; path = Lotto.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		000000000000000000000007 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000028, 000000000000000000000029, 00000000000000000000002A, 00000000000000000000002B, 00000000000000000000002C,); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000007 = { isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000028, 000000000000000000000029, 00000000000000000000002A, 00000000000000000000002B, 00000000000000000000002C, 000000000000000000000045,); runOnlyForDeploymentPostprocessing = 0; };
 		000000000000000000000008 = { isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
-		000000000000000000000009 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000017,); runOnlyForDeploymentPostprocessing = 0; };
+		000000000000000000000009 = { isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (000000000000000000000017, 000000000000000000000043,); runOnlyForDeploymentPostprocessing = 0; };
 		00000000000000000000000B = { isa = XCConfigurationList; buildConfigurations = (00000000000000000000000D, 00000000000000000000000E,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		00000000000000000000000C = { isa = XCConfigurationList; buildConfigurations = (00000000000000000000000F, 000000000000000000000010,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		00000000000000000000000D = { isa = XCBuildConfiguration; buildSettings = { IPHONEOS_DEPLOYMENT_TARGET = 17.0; SDKROOT = iphoneos; SWIFT_VERSION = 5.0; CLANG_ENABLE_MODULES = YES; SWIFT_OPTIMIZATION_LEVEL = "-Onone"; SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG; }; name = Debug; };
@@ -43,6 +43,10 @@
 		00000000000000000000003B = { isa = XCBuildConfiguration; buildSettings = { GENERATE_INFOPLIST_FILE = YES; PRODUCT_BUNDLE_IDENTIFIER = com.joobang.lotto.preview.uitests; PRODUCT_NAME = "$(TARGET_NAME)"; TARGETED_DEVICE_FAMILY = 1; TEST_TARGET_NAME = Lotto; }; name = Release; };
 		00000000000000000000003C = { isa = PBXTargetDependency; target = 000000000000000000000005; targetProxy = 00000000000000000000003D; };
 		00000000000000000000003D = { isa = PBXContainerItemProxy; containerPortal = 000000000000000000000001; proxyType = 1; remoteGlobalIDString = 000000000000000000000005; remoteInfo = Lotto; };
+		000000000000000000000042 = { isa = PBXFileReference; lastKnownFileType = audio.wav; path = "Resources/draw-launch.wav"; sourceTree = "<group>"; };
+		000000000000000000000043 = { isa = PBXBuildFile; fileRef = 000000000000000000000042; };
+		000000000000000000000044 = { isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LottoCinema.swift; sourceTree = "<group>"; };
+		000000000000000000000045 = { isa = PBXBuildFile; fileRef = 000000000000000000000044; };
 	};
 	rootObject = 000000000000000000000001;
 }

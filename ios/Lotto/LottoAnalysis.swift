@@ -11,7 +11,7 @@ struct CountRow: View {
             GeometryReader { proxy in
                 Capsule().fill(LottoStyle.line)
                     .overlay(alignment: .leading) {
-                        Capsule().fill(LottoStyle.violet)
+                        Capsule().fill(LottoStyle.cobalt)
                             .frame(width: proxy.size.width * CGFloat(count) / CGFloat(max(1, maximum)))
                     }
             }.frame(height: 7).accessibilityHidden(true)
@@ -89,7 +89,7 @@ struct AnalysisView: View {
     @ViewBuilder private var summary: some View {
         if let closest = analysis.matches.first {
             VStack(alignment: .leading, spacing: 12) {
-                Text("역대 최고 일치").font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.lime)
+                Text("역대 최고 일치").font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
                 Text("\(analysis.best)개가 함께\n나온 적이 있어요")
                     .font(.system(.title, design: .rounded, weight: .black))
                     .foregroundStyle(.white)
@@ -97,12 +97,12 @@ struct AnalysisView: View {
                     .font(.subheadline.weight(.medium)).foregroundStyle(.white.opacity(0.86))
                 BallRow(numbers: line.numbers, hits: closest.hits, stage: true)
                 Button("닮은 회차 더 보기", systemImage: "arrow.up.right") { page = .rounds }
-                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.lime)
+                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
                     .padding(.top, 3)
             }
             .padding(18)
             .background(
-                LinearGradient(colors: [LottoStyle.night, LottoStyle.violet], startPoint: .topLeading, endPoint: .bottomTrailing),
+                LinearGradient(colors: [LottoStyle.night, LottoStyle.cobalt], startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: RoundedRectangle(cornerRadius: 24)
             )
             VStack(alignment: .leading, spacing: 12) {
@@ -134,7 +134,7 @@ struct AnalysisView: View {
                         Spacer()
                         Text("\(match.hits.count)개 일치")
                             .font(.caption.weight(.bold)).padding(8)
-                            .background(LottoStyle.lime, in: Capsule())
+                            .background(LottoStyle.gold, in: Capsule())
                     }
                     Text("당첨번호").font(.caption.weight(.semibold)).foregroundStyle(LottoStyle.muted)
                     BallRow(numbers: match.draw.numbers, hits: match.hits)
@@ -228,7 +228,7 @@ struct NumberEditor: View {
                     }
                 }.lottoCard()
                 if duplicate {
-                    Text("이미 저장한 조합이에요.").font(.subheadline).foregroundStyle(LottoStyle.violet)
+                    Text("이미 저장한 조합이에요.").font(.subheadline).foregroundStyle(LottoStyle.cobalt)
                 }
                 PrimaryLottoButton(label: "조합 저장", symbol: "bookmark.fill") {
                     let label = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -241,5 +241,85 @@ struct NumberEditor: View {
         }
         .foregroundStyle(LottoStyle.ink)
         .background(LottoStyle.paper.ignoresSafeArea())
+    }
+}
+
+struct PatternDetails: View {
+    let pattern: DrawPattern
+    let sum: Int
+
+    var body: some View {
+        let captions = ["홀짝", "번호 합계", "번호대", "연속번호"]
+        let values = ["\(pattern.odds) : \(6 - pattern.odds)", "\(sum) · \(pattern.sumRange) 구간",
+                      "\(pattern.occupiedBands)개 구간", pattern.hasConsecutive ? "있음" : "없음"]
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+            ForEach(captions.indices, id: \.self) { index in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(captions[index]).font(.caption)
+                    Text(values[index]).font(.subheadline.weight(.bold))
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 10).padding(.vertical, 9)
+                .background(.white.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+}
+
+struct HistoricalPatternSummary: View {
+    let patterns: HistoricalPatterns
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("역대 조합 뜯어보기").font(.title3.weight(.heavy))
+            Text("본번호 6개 기준 · 번호대는 1–10, 11–20, 21–30, 31–40, 41–45")
+                .font(.caption).foregroundStyle(LottoStyle.muted)
+            comparison("홀짝 3 : 3", count: patterns.oddsCounts[3, default: 0])
+            comparison("합계 121~150", count: patterns.sumCounts[4, default: 0])
+            comparison("4개 번호대에 분포", count: patterns.bandCounts[4, default: 0])
+            comparison("연속번호 있음", count: patterns.consecutiveCount)
+
+            DisclosureGroup("전체 패턴 분포", isExpanded: $expanded) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("홀짝").font(.subheadline.weight(.bold))
+                    ForEach(0...6, id: \.self) { odds in
+                        comparison("\(odds) : \(6 - odds)", count: patterns.oddsCounts[odds, default: 0])
+                    }
+                    Text("번호 합계 구간").font(.subheadline.weight(.bold))
+                    ForEach(patterns.sumCounts.keys.sorted(), id: \.self) { bucket in
+                        comparison("\(bucket * 30 + 1)~\((bucket + 1) * 30)", count: patterns.sumCounts[bucket, default: 0])
+                    }
+                    Text("번호대 수").font(.subheadline.weight(.bold))
+                    ForEach(1...5, id: \.self) { bands in
+                        comparison("\(bands)개 구간", count: patterns.bandCounts[bands, default: 0])
+                    }
+                    comparison("연속번호 없음", count: patterns.roundCount - patterns.consecutiveCount)
+                }.padding(.vertical, 11)
+            }
+            .font(.subheadline.weight(.semibold))
+            .tint(LottoStyle.cobalt)
+        }
+        .lottoCard()
+    }
+
+    private func comparison(_ label: String, count: Int) -> some View {
+        let share = Double(count) / Double(max(1, patterns.roundCount))
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 8) {
+                Text(label).font(.subheadline)
+                Spacer()
+                Text("\(count)회 · \(share.formatted(.percent.precision(.fractionLength(1))))")
+                    .font(.caption.monospacedDigit().weight(.semibold)).foregroundStyle(LottoStyle.muted)
+            }
+            GeometryReader { geometry in
+                Capsule().fill(LottoStyle.line)
+                    .overlay(alignment: .leading) {
+                        Capsule().fill(LottoStyle.cobalt)
+                            .frame(width: geometry.size.width * share)
+                    }
+            }.frame(height: 5).accessibilityHidden(true)
+        }.accessibilityElement(children: .combine)
     }
 }

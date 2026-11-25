@@ -7,10 +7,19 @@ final class LottoPreviewTests: XCTestCase {
         app.launchEnvironment["LOTTO_UI_TEST_RUN"] = UUID().uuidString
         app.launch()
         capture("lotto-first-launch", from: app)
-        app.buttons["quick-draw"].tap()
         let result = app.descendants(matching: .any).matching(identifier: "draw-result").firstMatch
+        let orb = app.buttons["quick-pull"]
+        XCTAssertTrue(orb.exists)
+        pull(orb, distance: 27, hold: 0.10)
+        XCTAssertFalse(result.exists)
+        pull(orb, distance: 93, hold: 0.28)
+        capture("lotto-pull-cutscene", from: app)
         XCTAssertTrue(result.exists)
-        capture("lotto-draw", from: app)
+        XCTAssertEqual(result.label.split(whereSeparator: { !$0.isNumber }).count, 6)
+        Thread.sleep(forTimeInterval: 0.64)
+        capture("lotto-pull-number-orbs", from: app)
+        Thread.sleep(forTimeInterval: 1.05)
+        capture("lotto-pull-result", from: app)
 
         app.buttons["내 번호에 저장"].tap()
         XCTAssertTrue(app.buttons["저장됨"].exists)
@@ -39,10 +48,30 @@ final class LottoPreviewTests: XCTestCase {
 
         app.buttons["역대 통계"].tap()
         XCTAssertTrue(app.staticTexts["1~1251회 이력"].exists)
-        app.buttons["통계로 뽑기"].tap()
+        pull(app.buttons["pattern-pull"], distance: 78, hold: 0.12)
+        let pattern = app.descendants(matching: .any).matching(identifier: "pattern-result").firstMatch
+        XCTAssertTrue(pattern.exists)
+        XCTAssertEqual(pattern.label.split(whereSeparator: { !$0.isNumber }).count, 6)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "이 구성은 역대")).firstMatch.exists)
         XCTAssertTrue(app.buttons["저장"].exists)
-        XCTAssertTrue(app.staticTexts["45개 번호의 출현 횟수"].exists)
-        capture("lotto-stats", from: app)
+        // This capture shows the result card after the cutscene has cleared.
+        Thread.sleep(forTimeInterval: 1.90)
+        capture("lotto-pattern-result", from: app)
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["역대 조합 뜯어보기"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "416회")).firstMatch.exists)
+        capture("lotto-pattern-distribution", from: app)
+        app.terminate()
+        app.launch()
+        app.buttons["quick-draw"].tap()
+        XCTAssertTrue(result.exists)
+    }
+
+    @MainActor
+    private func pull(_ orb: XCUIElement, distance: CGFloat, hold: TimeInterval) {
+        let start = orb.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        let end = start.withOffset(CGVector(dx: 0, dy: distance))
+        start.press(forDuration: 0.08, thenDragTo: end, withVelocity: .slow, thenHoldForDuration: hold)
     }
 
     @MainActor

@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import AVFoundation
 
 @main
 struct LottoApp: App {
@@ -26,9 +27,10 @@ struct LottoHome: View {
     @AppStorage private var savedData: Data
     @State private var tab: LottoTab = .random
     @State private var result: [Int] = []
-    @State private var recommendation: [Int] = []
-    @State private var shining = false
-    @State private var pulse: Task<Void, Never>?
+    @State private var recommendation: PatternPick?
+    @State private var patternUnavailable = false
+    @State private var reveal: DrawReveal?
+    @State private var launchSound = LaunchSound()
     @State private var analysis: SavedLine?
     @State private var editor: SavedLine?
     @State private var pendingDelete: SavedLine?
@@ -67,6 +69,34 @@ struct LottoHome: View {
         .background(LottoStyle.paper.ignoresSafeArea())
         .foregroundStyle(LottoStyle.ink)
         .preferredColorScheme(.light)
+        .overlay {
+            if let reveal {
+                LottoCutscene(reveal: reveal)
+                    .id(reveal.id)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .task { launchSound.prepare() }
+        .task(id: reveal?.id) {
+            guard let id = reveal?.id else { return }
+            let impacts = UIImpactFeedbackGenerator(style: .rigid)
+            impacts.prepare()
+            try? await Task.sleep(for: .seconds(LottoCutscene.collision))
+            guard !Task.isCancelled, reveal?.id == id else { return }
+            UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+            let firstLanding = LottoCutscene.firstBall + LottoCutscene.landingCue
+            try? await Task.sleep(for: .seconds(firstLanding - LottoCutscene.collision))
+            for index in 0..<6 {
+                guard !Task.isCancelled, reveal?.id == id else { return }
+                impacts.impactOccurred(intensity: index == 5 ? 1 : 0.35 + Double(index) * 0.08)
+                if index < 5 { try? await Task.sleep(for: .seconds(LottoCutscene.ballInterval)) }
+            }
+            let lastBall = firstLanding + 5 * LottoCutscene.ballInterval
+            try? await Task.sleep(for: .seconds(LottoCutscene.duration - lastBall))
+            guard !Task.isCancelled, reveal?.id == id else { return }
+            reveal = nil
+        }
         .sheet(item: $analysis) { line in
             AnalysisView(line: line, history: history)
         }
@@ -86,17 +116,33 @@ struct LottoHome: View {
 
     private var randomScreen: some View {
         Group {
-            LottoHeading(title: "번호 뽑기", subtitle: "한 번 눌러 여섯 번호를 뽑아요.")
-            LottoStage(numbers: result, shine: shining)
-            PrimaryLottoButton(label: result.isEmpty ? "번호 뽑기" : "다시 뽑기", symbol: "sparkles", action: draw)
-                .accessibilityIdentifier("quick-draw")
+            LottoHeading(title: "번호 뽑기", subtitle: "한 번 당겨서 여섯 번호를 뽑아요.")
+            DrawLauncher(compact: false, identifier: "quick-pull") { draw($0) }
+            Button {
+                draw(nil)
+            } label: {
+                Label("탭으로 뽑기", systemImage: "hand.tap")
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity, minHeight: 45)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(LottoStyle.cobalt)
+            .padding(.top, -9)
+            .accessibilityIdentifier("quick-draw")
+
             if !result.isEmpty {
-                HStack(spacing: 10) {
-                    action(resultIsSaved ? "저장됨" : "내 번호에 저장", resultIsSaved ? "checkmark" : "bookmark") {
-                        save(numbers: result)
-                    }.disabled(resultIsSaved)
-                    action("역대 비교", "arrow.up.right") { openAnalysis(result) }
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("이번 조합").font(.headline).foregroundStyle(LottoStyle.ink)
+                    BallRow(numbers: result, stage: true)
+                        .accessibilityIdentifier("draw-result")
+                    HStack(spacing: 10) {
+                        action(resultIsSaved ? "저장됨" : "내 번호에 저장", resultIsSaved ? "checkmark" : "bookmark") {
+                            save(numbers: result)
+                        }.disabled(resultIsSaved)
+                        action("역대 비교", "arrow.up.right") { openAnalysis(result) }
+                    }
                 }
+                .lottoCard()
             }
         }
     }
@@ -106,7 +152,7 @@ struct LottoHome: View {
             LottoHeading(title: "내 번호", subtitle: "자주 쓰는 조합을 역대 당첨번호와 비교해요.")
             if saved.isEmpty {
                 VStack(alignment: .leading, spacing: 11) {
-                    Image(systemName: "bookmark").font(.title2).foregroundStyle(LottoStyle.violet)
+                    Image(systemName: "bookmark").font(.title2).foregroundStyle(LottoStyle.cobalt)
                     Text("아직 저장한 번호가 없어요").font(.headline)
                     Text("번호를 직접 고르거나 뽑기 결과를 저장해 보세요.")
                         .font(.subheadline).foregroundStyle(LottoStyle.muted)
@@ -128,7 +174,7 @@ struct LottoHome: View {
                         Label("역대 회차 비교", systemImage: "arrow.up.right")
                             .font(.subheadline.weight(.bold))
                             .frame(maxWidth: .infinity, alignment: .leading)
-                    }.padding(.top, 2).foregroundStyle(LottoStyle.violet)
+                    }.padding(.top, 2).foregroundStyle(LottoStyle.cobalt)
                 }.lottoCard()
             }
             PrimaryLottoButton(label: "번호 직접 추가", symbol: "plus") {
@@ -141,23 +187,8 @@ struct LottoHome: View {
         Group {
             LottoHeading(title: "역대 통계", subtitle: history.range)
             if !history.draws.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("다음 조합").font(.title2.weight(.black))
-                    Text("역대에 자주 나온 번호에 가중치를 줘요.")
-                        .font(.subheadline).foregroundStyle(LottoStyle.muted)
-                    if !recommendation.isEmpty {
-                        BallRow(numbers: recommendation)
-                        HStack(spacing: 10) {
-                            action(saved.contains { $0.numbers == recommendation } ? "저장됨" : "저장", "bookmark") {
-                                save(numbers: recommendation)
-                            }.disabled(saved.contains { $0.numbers == recommendation })
-                            action("역대 비교", "arrow.up.right") { openAnalysis(recommendation) }
-                        }
-                    }
-                    PrimaryLottoButton(label: "통계로 뽑기", symbol: "chart.bar.fill") {
-                        recommendation = history.frequencyDraw()
-                    }
-                }.lottoCard()
+                patternPicker
+                HistoricalPatternSummary(patterns: history.patterns)
 
                 VStack(alignment: .leading, spacing: 12) {
                     Text("45개 번호의 출현 횟수").font(.title3.weight(.heavy))
@@ -177,6 +208,52 @@ struct LottoHome: View {
         }
     }
 
+    private var patternPicker: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 6) {
+                Label("패턴 뽑기", systemImage: "point.3.connected.trianglepath.dotted")
+                    .font(.title2.weight(.black))
+                Text("역대 조합의 홀짝, 합계, 번호대, 연속번호 구성을 따라 새 번호를 뽑아요.")
+                    .font(.subheadline).foregroundStyle(.white.opacity(0.85))
+            }
+            DrawLauncher(compact: true, identifier: "pattern-pull") { drawPattern($0) }
+            Button {
+                drawPattern(nil)
+            } label: {
+                Label("패턴으로 뽑기", systemImage: "hand.tap")
+                    .font(.subheadline.weight(.bold))
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(LottoStyle.gold)
+            if let pick = recommendation {
+                BallRow(numbers: pick.numbers, stage: true)
+                    .accessibilityIdentifier("pattern-result")
+                PatternDetails(pattern: pick.pattern, sum: pick.numbers.reduce(0, +))
+                Text("이 구성은 역대 \(pick.matchingRounds)회 나왔어요.")
+                    .font(.subheadline.weight(.bold)).foregroundStyle(LottoStyle.gold)
+                HStack(spacing: 10) {
+                    let isSaved = saved.contains { $0.numbers == pick.numbers }
+                    action(isSaved ? "저장됨" : "저장", "bookmark") { save(numbers: pick.numbers) }
+                        .disabled(isSaved)
+                    action("역대 비교", "arrow.up.right") { openAnalysis(pick.numbers) }
+                }
+            }
+            if patternUnavailable {
+                Text("조합을 만들지 못했어요. 다시 시도해 주세요.")
+                    .font(.subheadline).foregroundStyle(.white)
+            }
+            Text("공정 추첨에서는 모든 번호 조합의 당첨 확률이 같아요.")
+                .font(.caption).foregroundStyle(.white.opacity(0.8))
+        }
+        .foregroundStyle(.white)
+        .padding(17)
+        .background(
+            LinearGradient(colors: [LottoStyle.night, LottoStyle.cobalt], startPoint: .topLeading, endPoint: .bottomTrailing),
+            in: RoundedRectangle(cornerRadius: 24)
+        )
+    }
+
     private var tabBar: some View {
         HStack(spacing: 5) {
             ForEach(LottoTab.allCases, id: \.self) { page in
@@ -187,7 +264,7 @@ struct LottoHome: View {
                     }
                     .frame(maxWidth: .infinity, minHeight: 54)
                     .foregroundStyle(tab == page ? LottoStyle.ink : LottoStyle.muted)
-                    .background(tab == page ? LottoStyle.lime : .clear, in: RoundedRectangle(cornerRadius: 16))
+                    .background(tab == page ? LottoStyle.gold : .clear, in: RoundedRectangle(cornerRadius: 16))
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(tab == page ? .isSelected : [])
@@ -198,19 +275,28 @@ struct LottoHome: View {
         .overlay(alignment: .top) { Rectangle().fill(LottoStyle.line).frame(height: 1) }
     }
 
-    private func draw() {
-        // Replace the full result before starting the independent decorative animation.
+    private func draw(_ input: LaunchInput?) {
         result = LottoHistory.random()
-        pulse?.cancel()
-        if !reduceMotion {
-            shining = true
-            pulse = Task { @MainActor in
-                try? await Task.sleep(for: .milliseconds(70))
-                guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.17)) { shining = false }
-            }
+        showCutscene(result, title: "오늘의 여섯 번호", launch: input)
+    }
+
+    private func drawPattern(_ input: LaunchInput?) {
+        let pick = history.patterns.pick()
+        patternUnavailable = pick == nil
+        if let pick {
+            recommendation = pick
+            showCutscene(pick.numbers, title: "역대 패턴 조합", launch: input)
         }
-        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func showCutscene(_ numbers: [Int], title: String, launch: LaunchInput?) {
+        if reduceMotion {
+            reveal = nil
+            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        } else {
+            reveal = DrawReveal(numbers: numbers, title: title, launch: launch)
+            launchSound.play()
+        }
     }
 
     private func action(_ label: String, _ symbol: String, perform: @escaping () -> Void) -> some View {
@@ -245,5 +331,29 @@ struct LottoHome: View {
 
     private func openAnalysis(_ numbers: [Int]) {
         analysis = saved.first { $0.numbers == numbers } ?? SavedLine(name: "이 조합", numbers: numbers)
+    }
+}
+
+
+private final class LaunchSound {
+    private var player: AVAudioPlayer?
+
+    func prepare() {
+        guard player == nil, let sound = Bundle.main.url(forResource: "draw-launch", withExtension: "wav") else { return }
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.ambient)
+            let player = try AVAudioPlayer(contentsOf: sound)
+            player.prepareToPlay()
+            self.player = player
+        } catch {
+            // Drawing remains available on devices where audio playback cannot be initialized.
+            player = nil
+        }
+    }
+
+    func play() {
+        prepare()
+        player?.currentTime = 0
+        player?.play()
     }
 }
