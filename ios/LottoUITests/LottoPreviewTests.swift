@@ -8,8 +8,10 @@ final class LottoPreviewTests: XCTestCase {
         app.launch()
         capture("lotto-first-launch", from: app)
         app.buttons["quick-draw"].tap()
+        capture("lotto-cutscene", from: app)
         let result = app.descendants(matching: .any).matching(identifier: "draw-result").firstMatch
         XCTAssertTrue(result.exists)
+        XCTAssertEqual(result.label.split(whereSeparator: { !$0.isNumber }).count, 6)
         capture("lotto-draw", from: app)
 
         app.buttons["내 번호에 저장"].tap()
@@ -39,10 +41,19 @@ final class LottoPreviewTests: XCTestCase {
 
         app.buttons["역대 통계"].tap()
         XCTAssertTrue(app.staticTexts["1~1251회 이력"].exists)
-        app.buttons["통계로 뽑기"].tap()
+        app.buttons["패턴으로 뽑기"].tap()
+        let pattern = app.descendants(matching: .any).matching(identifier: "pattern-result").firstMatch
+        XCTAssertTrue(pattern.exists)
+        XCTAssertEqual(pattern.label.split(whereSeparator: { !$0.isNumber }).count, 6)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label BEGINSWITH %@", "이 구성은 역대")).firstMatch.exists)
         XCTAssertTrue(app.buttons["저장"].exists)
-        XCTAssertTrue(app.staticTexts["45개 번호의 출현 횟수"].exists)
-        capture("lotto-stats", from: app)
+        // This capture shows the result card after the cutscene has cleared.
+        Thread.sleep(forTimeInterval: 0.85)
+        capture("lotto-pattern-result", from: app)
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["역대 조합 뜯어보기"].exists)
+        XCTAssertTrue(app.staticTexts.containing(NSPredicate(format: "label CONTAINS %@", "416회")).firstMatch.exists)
+        capture("lotto-pattern-distribution", from: app)
     }
 
     @MainActor
